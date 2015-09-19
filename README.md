@@ -37,7 +37,7 @@ Trace/BPT trap: 5
 
 ### Fix installed instant client.
 
-Download fix_oralib.rb and execute it.
+Download `fix_oralib.rb` and execute it.
 
 ```shell
 curl -O https://raw.githubusercontent.com/kubo/fix_oralib_osx/master/fix_oralib.rb
@@ -56,6 +56,9 @@ Copyright (c) 1982, 2013, Oracle.  All rights reserved.
 Enter user-name: 
 ```
 
+Note that the fixed instant client can be moved to any directory as long as
+all files are in a directory.
+
 ## Fix Third Party Applications
 
 You need to fix Oracle Instance Client in advance.
@@ -63,49 +66,42 @@ You need to fix Oracle Instance Client in advance.
 If third party applications are built properly,
 you have no need to do the followings.
 
-### Executable which directly depends on Oracle libraries
+In this section, assume that `/opt/instantclient_11_2` is the instant client directory
 
-Run the following command:
+### Fix compiled files
+
+If you don't have source code and cannot make binary files,
+the easiest way is applying `fix_oralib.rb` to all files.
+`fix_oralib.rb` doesn't change unrelated files without `-f` option.
 
 ```shell
-# if Oracle libraries are in '/opt/instantclient_11_2'
-ruby fir_oralib.rb --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_EXECUTABLE
+$ find /path/to/application/top/directory -type f | xargs ruby fix_oralib.rb --ic_dir=/opt/instantclient_11_2
 ```
-(Replace `FILE_NAME_OF_EXECUTABLE` with the real name.)
 
-Note for developers who create C applications.
+If the application executable file doesn't depends on Oracle directly,
+you need to apply `fix_oralib.rb` with `-f` option.
 
-`fix_oralib.rb` should be applied to Oracle instant client before linkage.
+```shell
+$ ruby fix_oralib.rb -f --ic_dir=/opt/instantclient_11_2 /path/to/executable/file
+```
+
+### Fix compilation steps
+
+If you have source code and can make binary files, do the followings.
+
+`fix_oralib.rb` should be applied to Oracle instant client before compilation.
+
 `-Wl,-rpath,/opt/instantclient_11_2` should be set to `cc` or
-`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage.
-(Change the path if Oracle client libraries are not in `/opt/instantclient_11_2`.)
+`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage of executable files.
 
-### Executable which loads a module depending on Oracle libraries
+For example `rpath` must be set to the executable `A` in the following case.
+* `A` is an executable file and doesn't depend on Oracle.
+* `B` is an Oracle interface of `A` and depends on Oracle.
 
-The relation of the executable and the module is as that of ruby and
-ruby-oci8. Whereas ruby doesn't depend on Oracle, ruby-oci8 depends
-on Oracle. You need to get the full path of the executable in addition
-to the module before running the following commands.
+Though it is ideal that `rpath` is set to 'B' only, it can't.
+If `rpath` isn't set to `A`, `libclntsh.dylib` cannot find the full path
+of self and `OCIEnvCreate()` fails.
 
-```shell
-# Remember to set `-f` option for the executable which doesn't depends on Oracle.
-ruby fir_oralib.rb -f --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_EXECUTABLE
-ruby fir_oralib.rb --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_MODULE
-```
-(Replace `FILE_NAME_OF_EXECUTABLE` and `FILE_NAME_OF_MODULE` with
-the real name respectively.)
-
-Note for developers who create C modules.
-
-`fix_oralib.rb` should be applied to Oracle instant client before linkage of a module.
-`-Wl,-rpath,/opt/instantclient_11_2` should be set to `cc` or
-`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage of an executable.
-
-If you are not a developer of the executable, write a document to execute the following command.
-```shell
-ruby fir_oralib.rb -f --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_EXECUTABLE
-```
-
-As for ruby-oci8, setting rpath to ruby itself is not required because
-ruby-oci8 [intercepts](https://github.com/kubo/ruby-oci8/blob/92d596283f1451cc31b97f97b58fa4e2dea2e9c8/ext/oci8/osx.c#L9) `dlopen` function calls issued by `libclntsh.dylib`
-to make `OCIEnvCreate()` work without setting rpath to the executable.
+The only exception is `ruby-oci8` at the present time. It [intercepts](https://github.com/kubo/ruby-oci8/blob/92d596283f1451cc31b97f97b58fa4e2dea2e9c8/ext/oci8/osx.c#L9) `dlopen`
+function calls issued by `libclntsh.dylib` to make `OCIEnvCreate()`
+work without setting `rpath` to `ruby` itself.
