@@ -14,7 +14,9 @@ and make them work without `DYLD_*` environment variables.
 
 Note: You have no need to the following procedures if you put instant client libraries to `$HOME/lib` or `/usr/local/lib`.
 
-### Download 64-bit Instant client packages from http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html, unzip them and change to the unzipped directory.
+### Install instant client.
+
+Download 64-bit Instant client packages from [OTN](http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html), unzip them and change to the unzipped directory.
 
 ```shell
 unzip instantclient-basic-macos.x64-11.2.0.4.0.zip
@@ -33,7 +35,9 @@ dyld: Library not loaded: /ade/dosulliv_sqlplus_mac/oracle/sqlplus/lib/libsqlplu
 Trace/BPT trap: 5
 ```
 
-### Download fix_oralib.rb and execute it.
+### Fix installed instant client.
+
+Download fix_oralib.rb and execute it.
 
 ```shell
 curl -O https://raw.githubusercontent.com/kubo/fix_oralib_osx/master/fix_oralib.rb
@@ -52,12 +56,16 @@ Copyright (c) 1982, 2013, Oracle.  All rights reserved.
 Enter user-name: 
 ```
 
-## Fix Third party applications
+## Fix Third Party Applications
 
-### executable which directly links Oracle libraries.
+You need to fix Oracle Instance Client in advance.
 
-If it doesn't work by loading error of Oracle libraries, run
-the following command:
+If third party applications are built properly,
+you have no need to do the followings.
+
+### Executable which directly depends on Oracle libraries
+
+Run the following command:
 
 ```shell
 # if Oracle libraries are in '/opt/instantclient_11_2'
@@ -72,26 +80,32 @@ Note for developers who create C applications.
 `-rpath /opt/instantclient_11_2` should be set to `ld` on linkage.
 (Change the path if Oracle client libraries are not in `/opt/instantclient_11_2`.)
 
-### loadable module which links Oracle libraries.
+### Executable which loads a module depending on Oracle libraries
 
-If it doesn't work by loading error of Oracle libraries, run
-the following command:
+The relation of the executable and the module is as that of ruby and
+ruby-oci8. Whereas ruby doesn't depend on Oracle, ruby-oci8 depends
+on Oracle. You need to get the full path of the executable in addition
+to the module before running the following commands.
 
 ```shell
-# if Oracle libraries are in '/opt/instantclient_11_2'
+# Remember to set `-f` option for the executable which doesn't depends on Oracle.
 ruby fir_oralib.rb -f --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_EXECUTABLE
-ruby fir_oralib.rb --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_LODABLE_MODULE
+ruby fir_oralib.rb --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_MODULE
 ```
-(Replace `FILE_NAME_OF_EXECUTABLE` and FILE_NAME_OF_LODABLE_MODULE with
+(Replace `FILE_NAME_OF_EXECUTABLE` and `FILE_NAME_OF_MODULE` with
 the real name respectively.)
 
-Note for developers who create C lodable modules.
+Note for developers who create C modules.
 
-`fix_oralib.rb` should be applied to Oracle instant client before linkage of loadable module.
+`fix_oralib.rb` should be applied to Oracle instant client before linkage of a module.
 `-Wl,-rpath,/opt/instantclient_11_2` should be set to `cc` or
-`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage of executable.
+`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage of an executable.
 
-If you are not a developer of executable, write a document to execute the following command.
+If you are not a developer of the executable, write a document to execute the following command.
 ```shell
 ruby fir_oralib.rb -f --ic_dir=/opt/instantclient_11_2 FILE_NAME_OF_EXECUTABLE
 ```
+
+As for ruby-oci8, setting rpath to ruby itself is not required because
+ruby-oci8 [intercepts](https://github.com/kubo/ruby-oci8/blob/92d596283f1451cc31b97f97b58fa4e2dea2e9c8/ext/oci8/osx.c#L9) `dlopen` function calls issued by `libclntsh.dylib`
+to make `OCIEnvCreate()` work without setting rpath to the executable.
