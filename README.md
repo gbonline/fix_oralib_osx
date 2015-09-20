@@ -92,19 +92,7 @@ If you have source code and can make binary files, do the followings.
 `fix_oralib.rb` should be applied to Oracle instant client before compilation.
 
 `-Wl,-rpath,/opt/instantclient_11_2` should be set to `cc` or
-`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage of executable files.
+`-rpath /opt/instantclient_11_2` should be set to `ld` on linkage.
 (If you put your executable in a relative path of instant client, you can use
 `@loader_path` + "relative path to instant client" such as `@loader_path/../lib`
 instead of absolute path.)
-
-For example `rpath` must be set to the executable `A` in the following case.
-* `A` is an executable file and doesn't depend on Oracle.
-* `B` is an Oracle interface of `A` and depends on Oracle.
-
-Though it is ideal that `rpath` is set to `B` only, it can't.
-If `rpath` isn't set to `A`, `libclntsh.dylib` cannot find the full path
-of self and `OCIEnvCreate()` fails.
-
-The only exception is `ruby-oci8` at the present time. It [intercepts](https://github.com/kubo/ruby-oci8/blob/92d596283f1451cc31b97f97b58fa4e2dea2e9c8/ext/oci8/osx.c#L9) `dlopen`
-function calls issued by `libclntsh.dylib` to make `OCIEnvCreate()`
-work without setting `rpath` to `ruby` itself.
