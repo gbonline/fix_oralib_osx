@@ -165,11 +165,11 @@ private
     when :add_rpath
       puts "   add rpath: #{args[0]}"
     when :id
-      puts "   change library id"
+      puts "   change identification name"
       puts "     from: #{library_id}"
       puts "       to: #{args[0]}"
     when :change
-      puts "   change dependent library"
+      puts "   change install name"
       puts "     from: #{args[0]}"
       puts "       to: #{args[1]}"
     end
