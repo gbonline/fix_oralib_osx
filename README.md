@@ -1,7 +1,5 @@
 # fix_oralib_osx
 
-## What this is.
-
 Until OS X 10.10 Yosemite, instant client works by setting `DYLD_LIBRARY_PATH`
 or `DYLD_FALLBACK_LIBRARY_PATH`.
 But since OS X 10.11 El Capitan, `DYLD_*` environment variables are unset by
@@ -41,7 +39,7 @@ Download `fix_oralib.rb` and execute it.
 
 ```shell
 curl -O https://raw.githubusercontent.com/kubo/fix_oralib_osx/master/fix_oralib.rb
-ruby fix_oralib.rb # apply to all files in the current directory by default.
+ruby fix_oralib.rb # apply to all files in the current directory.
 ```
 
 sqlplus works now as follows:
@@ -105,7 +103,17 @@ libraries. The absolute path of the directory containing Oracle
 libraries is added as a rpath if the target file depends on Oracle
 libraries and is in a directory different with Oracle libraries.
 
-The original sqlplus has install names only. Identification name and rpaths are empty.
+Don't confuse `@rpath` with rpath. `@rpath` is a special name used in
+identification and install names. rpath is a directory name
+replaced with `@rpath` at runtime to find the real path of install
+names.
+
+## Why install names and rpaths are changed.
+
+The original sqlplus has install names only.
+
+Note: `otool -D filename` prints the identification name. `otool -L filename` prints the identification
+name *and* install names. `otool -l filename | grep -A2 LC_RPATH | grep path` prints rpaths.
 
 ```shell
 $ otool -D sqlplus
@@ -123,7 +131,7 @@ When sqlplus runs, it tries to use `libsqlplus.dylib` in `DYLD_LIBRARY_PATH`.
 If it fails, it tries to use the full path `/ade/dosulliv_sqlplus_mac/oracle/sqlplus/lib/libsqlplus.dylib`
 and then use `libsqlplus.dylib` in `DYLD_FALLBACK_LIBRARY_PATH`.
 
-However `DYLD_LIBRARY_PATH` and `DYLD_FALLBACK_LIBRARY_PATH` is unset on
+However `DYLD_LIBRARY_PATH` and `DYLD_FALLBACK_LIBRARY_PATH` are unset on
 OS X 10.11 El Capitan. Thus sqlplus runs only when `libsqlplus.dylib` is
 in `/ade/dosulliv_sqlplus_mac/oracle/sqlplus/lib/` or in the default
 path of `DYLD_FALLBACK_LIBRARY_PATH`: `$HOME/lib`, `/usr/local/lib`, `/lib`
@@ -146,7 +154,7 @@ $ otool -l sqlplus | grep -A2 LC_RPATH | grep path
 
 `@rpath` is replaced with rpaths recorded in sqlplus one by one.
 It is `@loader_path` only in this case. `@loader_path` is replaced with
-the directory containing sqlplus. Thus sqlplus tries to find
+the directory containing sqlplus. Thus sqlplus can find
 `libsqlplus.dylib` in the directory containing sqlplus.
 
 Other files in instant client are changed in the same way.
@@ -156,3 +164,94 @@ all files are in a directory.
 Third party applications are usually in a directory different with
 Oracle libraries. So that the absolute path of the directory
 containing Oracle libraries should be added as a rpath.
+
+## Why the identification name is changed.
+
+The original `libclntsh.dylib.11.1` has the following identification name.
+
+```shell
+$ otool -D libclntsh.dylib.11.1
+libclntsh.dylib.11.1:
+/ade/b/3071542110/oracle/rdbms/lib/libclntsh.dylib.11.1
+```
+
+The identification name is used as an install name in a binary and it
+can be changed by `install_name_tool` command after compilation as follows.
+
+```shell
+$ otool -D /opt/instantclient_11_2/libclntsh.dylib.11.1
+/opt/instantclient_11_2/libclntsh.dylib.11.1:
+/ade/b/3071542110/oracle/rdbms/lib/libclntsh.dylib.11.1
+$ cc -o oraclapp oracleapp.c -I/opt/instantclient_11_2/sdk/include -L/opt/instantclient_11_2 -Wl,-rpath,/opt/instantclient_11_2 -lclntsh.
+$ otool -L oraclapp
+oraclapp:
+	/ade/b/2475221476/oracle/rdbms/lib/libclntsh.dylib.11.1 (compatibility version 0.0.0, current version 0.0.0)
+        ...
+$ install_name_tool -change /ade/b/2475221476/oracle/rdbms/lib/libclntsh.dylib.11.1 @rpath/libclntsh.dylib.11.1 oracleapp
+$ otool -L oraclapp
+oraclapp:
+	@rpath/libclntsh.dylib.11.1 (compatibility version 0.0.0, current version 0.0.0)
+        ...
+```
+
+However changing the identification in advance make compilation steps simple.
+
+```shell
+$ otool -D /opt/instantclient_11_2/libclntsh.dylib.11.1
+/opt/instantclient_11_2/libclntsh.dylib.11.1:
+@rpath/libclntsh.dylib.11.1
+$ cc -o oraclapp oracleapp.o -I/opt/instantclient_11_2/sdk/include -L/opt/instantclient_11_2 -Wl,-rpath,/opt/instantclient_11_2 -lclntsh.
+$ otool -L oraclapp
+oraclapp:
+	@rpath/libclntsh.dylib.11.1 (compatibility version 0.0.0, current version 0.0.0)
+        ...
+```
+
+## Absolute path option
+
+`fix_oralib.rb` uses the absolute path of instant client directory
+instead of `@rpath` if `-a` or `--absolute-path` optoin is specified.
+
+```shell
+$ pwd
+/opt/instantclient_11_2
+$ ruby fix_oralib.rb --absolute-path
+$ otool -D sqlplus
+sqlplus:
+$ otool -L sqlplus
+sqlplus:
+	/opt/instantclient_11_2/libsqlplus.dylib (compatibility version 0.0.0, current version 0.0.0)
+	/opt/instantclient_11_2/libclntsh.dylib.11.1 (compatibility version 0.0.0, current version 0.0.0)
+	/opt/instantclient_11_2/libnnz11.dylib (compatibility version 0.0.0, current version 0.0.0)
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 159.1.0)
+$ otool -l sqlplus | grep -A2 LC_RPATH | grep path
+```
+
+`fix_oralib.rb` doesn't set a rpath because install names doesn't
+include `@rpath`. The only exception is `libclntsh.dylib.11.1`. The
+OCI function `OCIEnvCreate` fails if rpath isn't set to point to the
+directory containing `libclntsh.dylib.11.1`.
+
+Absolute path may be better than `@rpath` on compilation.
+
+```shell
+$ otool -D /opt/instantclient_11_2/libclntsh.dylib.11.1
+/opt/instantclient_11_2/libclntsh.dylib.11.1:
+/opt/instantclient_11_2/libclntsh.dylib.11.1
+$ cc -o oraclapp oracleapp.o -I/opt/instantclient_11_2/sdk/include -L/opt/instantclient_11_2 -lclntsh.
+$ otool -L oraclapp
+oraclapp:
+	/opt/instantclient_11_2/libclntsh.dylib.11.1 (compatibility version 0.0.0, current version 0.0.0)
+        ...
+```
+
+When the identification name is an absolute path, the install name
+embedded in a compiled binary is also an absolute path. You have
+no need to set `-Wl,-rpath,/opt/instantclient_11_2` to `cc` to set
+rpath.
+
+However I chose `@rpath` because instant client packages may be
+installed anywhere. If I were employed by Oracle and could fix the
+identification and install names for the next instant client release,
+I would use `@rpath`. Otherwise, instant client doesn't work on El
+Capitan without changing install names.

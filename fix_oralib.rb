@@ -11,13 +11,13 @@ parser = OptionParser.new do |opts|
           "(default: current directory or script directory)") do |dir|
     options[:ic_dir] = File.expand_path('.', dir)
   end
+  opts.on("-a", "--[no-]absolute-path",
+          "Use the absolute path of instant client directory instead of @rpath") do |v|
+    options[:abs] = v
+  end
   opts.on("-n", "--[no-]dry-run",
           "Perform a trial run with no changes made") do |v|
     options[:dry_run] = v
-  end
-  opts.on("-f", "--[no-]force",
-          "Force addition of rpath") do |v|
-    options[:force] = v
   end
 end
 parser.parse!
@@ -48,7 +48,7 @@ class ObjectFileInfo
     @rpath_list = []
     @library_id = nil
     @dependent_libraries = []
-    force = opts[:force]
+    @abs = opts[:abs]
     @dry_run = opts[:dry_run]
 
     open(%Q{|otool -l "#{filename}"}) do |f|
@@ -83,23 +83,25 @@ class ObjectFileInfo
     else
       @oracle_rpath = @@ic_dir
     end
+    @libdir = @abs ? @@ic_dir : '@rpath'
 
     @should_be_fixed = false
     @rpath_should_be_fixed = false
     if not @dependent_libraries.empty?
-      if force or not @dependent_oracle_libraries.empty?
+      if @abs ? (@library_id and File.basename(@library_id) == @@oralibs[0])
+        : (not @dependent_oracle_libraries.empty?)
         if not @rpath_list.include? @oracle_rpath
           @rpath_should_be_fixed = true
           @should_be_fixed = true
         end
       end
       if @is_oracle_library
-        if @library_id != "@rpath/#{File.basename(@library_id)}"
+        if @library_id != "#{@libdir}/#{File.basename(@library_id)}"
           @should_be_fixed = true
         end
       end
       @dependent_oracle_libraries.each do |lib|
-        if lib != "@rpath/#{File.basename(lib)}"
+        if lib != "#{@libdir}/#{File.basename(lib)}"
           @should_be_fixed = true
         end
       end
@@ -115,14 +117,14 @@ class ObjectFileInfo
       end
       if @is_oracle_library
         basename = File.basename(@library_id)
-        if @library_id != "@rpath/#{basename}"
-          run_install_name_tool(:id, "@rpath/#{basename}", @filename)
+        if @library_id != "#{@libdir}/#{basename}"
+          run_install_name_tool(:id, "#{@libdir}/#{basename}", @filename)
         end
       end
       @dependent_oracle_libraries.each do |lib|
         basename = File.basename(lib)
-        if lib != "@rpath/#{basename}"
-          run_install_name_tool(:change, lib, "@rpath/#{basename}", @filename)
+        if lib != "#{@libdir}/#{basename}"
+          run_install_name_tool(:change, lib, "#{@libdir}/#{basename}", @filename)
         end
       end
       puts "" if @filename_outputted
@@ -203,7 +205,7 @@ end
 
 files = ARGV
 if files.size == 0
-  files = Dir['*']
+  files = Dir['*'].select {|file| File.file?(file)}
 end
 
 begin
