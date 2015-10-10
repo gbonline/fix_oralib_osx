@@ -32,14 +32,15 @@ class ObjectFileInfo
   class Error < RuntimeError
   end
 
-  @@oralibs = ["libclntsh.dylib.11.1",
-               "libnnz11.dylib",
-               "libocci.dylib.11.1",
-               "libociei.dylib",
-               "libociicus.dylib",
-               "libocijdbc11.dylib",
-               "libsqlplus.dylib",
-               "libsqlplusic.dylib",
+  @@oralibs = [/^libclntsh.dylib.\d+.\d$/, # in basic and basiclite packages
+               /^libnnz\d+.dylib$/,        # in basic and basiclite packages
+               /^libocci.dylib.\d+.\d$/,   # in basic and basiclite packages
+               "libociei.dylib",           # in basic package
+               "libociicus.dylib",         # in basiclite package
+               /^libocijdbc\d+.dylib$/,    # in basic and basiclite packages
+               "libsqlplus.dylib",         # in sqlplus package
+               "libsqlplusic.dylib",       # in sqlplus package
+               /^libheteroxa\d+.dylib$/    # in jdbc package
               ]
   @@ic_dir = nil
 
@@ -56,7 +57,6 @@ class ObjectFileInfo
       if line != "#{filename}:\n"
         break
       end
-      state = :wait_cmd
       while line = f.gets
         case line.strip
         when 'cmd LC_RPATH'
@@ -74,9 +74,9 @@ class ObjectFileInfo
         end
       end
     end
-    @is_oracle_library = @library_id && @@oralibs.include?(File.basename(@library_id))
+    @is_oracle_library = @library_id && is_oralib?(@library_id)
     @dependent_oracle_libraries = @dependent_libraries.select do |fname|
-      @@oralibs.include?(File.basename(fname))
+      is_oralib?(fname)
     end
     if File.identical?(@@ic_dir, File.dirname(@filename))
       @oracle_rpath = '@loader_path'
@@ -88,7 +88,7 @@ class ObjectFileInfo
     @should_be_fixed = false
     @rpath_should_be_fixed = false
     if not @dependent_libraries.empty?
-      if @abs ? (@library_id and File.basename(@library_id) == @@oralibs[0])
+      if @abs ? (@library_id and is_oralib?(@library_id, true))
         : (not @dependent_oracle_libraries.empty?)
         if not @rpath_list.include? @oracle_rpath
           @rpath_should_be_fixed = true
@@ -135,13 +135,14 @@ class ObjectFileInfo
 
   def self.set_rpath(ic_dir)
     if ic_dir
-      if not File.exists?(File.join(ic_dir, @@oralibs[0]))
+      if not is_oralib_dir?(ic_dir)
         raise Error, "#{ic_dir} is not an instant client directory."
       end
+      ic_dir = File.expand_path(ic_dir)
     else
-      if File.exists?(@@oralibs[0])
+      if is_oralib_dir?('.')
         ic_dir = File.expand_path('.')
-      elsif File.exists?(File.expand_path("../#{@@oralibs[0]}", __FILE__))
+      elsif is_oralib_dir?(File.expand_path('..', __FILE__))
         ic_dir = File.expand_path('..', __FILE__)
       else
         raise Error, <<EOS
@@ -156,6 +157,22 @@ EOS
   end
 
 private
+  def is_oralib?(filename, check_first_only = false)
+    basename = File.basename(filename)
+    if check_first_only
+      @@oralibs[0] === basename
+    else
+      @@oralibs.any? do |lib|
+        lib === basename
+      end
+    end
+  end
+
+  def self.is_oralib_dir?(dirname)
+    Dir.entries(dirname).any? do |filename|
+      @@oralibs[0] === filename
+    end
+  end
 
   def run_install_name_tool(command, *args)
     ensure_writable unless @dry_run
