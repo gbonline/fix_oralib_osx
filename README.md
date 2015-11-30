@@ -57,6 +57,36 @@ Enter user-name:
 Note that the fixed instant client can be moved to any directory as long as
 all files are in a directory.
 
+#### Fix installed instant client's OID generation failure.
+
+When you connect to a database, you may get an error such as:
+
+```shell
+$ ./sqlplus 
+
+SQL*Plus: Release 11.2.0.4.0 Production on Sat Sep 19 15:36:04 2015
+
+Copyright (c) 1982, 2013, Oracle.  All rights reserved.
+
+ERROR:
+ORA-21561: OID generation failed
+
+Enter user-name: 
+```
+This may indicate that your /etc/hosts file is missing loopback entries to your hostname.  This is not the same as a localhost alias; but very similar.
+
+On OS X 10.11 (El Capitan), you may have IPv4 and IPv6 entries in your hosts file.  You will need an entry aliasing your loopback address to your Mac's hostname for each variant you have enabled.
+
+Here are the one-line terminal commands to add those entries:
+
+* IPv4 style:  **_echo "127.0.0.1   $(hostname)" | sudo tee -a /etc/hosts_**
+
+* IPv6 style:  **_echo "::1   $(hostname)" | sudo tee -a /etc/hosts_**
+
+Your sqlplus connections should, now, work.  If you continue to receive similar OID generation errors, the hostname in
+your tnsnames.ora file may be incorrect.
+
+
 ## Fix Third Party Applications
 
 You need to fix Oracle Instance Client in advance.
