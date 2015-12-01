@@ -210,7 +210,7 @@ oraclapp:
 ## Absolute path option
 
 `fix_oralib.rb` uses the absolute path of instant client directory
-instead of `@rpath` if `-a` or `--absolute-path` optoin is specified.
+instead of `@rpath` if `-a` or `--absolute-path` option is specified.
 
 ```shell
 $ pwd
