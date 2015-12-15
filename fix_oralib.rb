@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'optparse'
+require 'pathname'
 
 options = {}
 parser = OptionParser.new do |opts|
@@ -14,6 +15,10 @@ parser = OptionParser.new do |opts|
   opts.on("-a", "--[no-]absolute-path",
           "Use the absolute path of instant client directory instead of @rpath") do |v|
     options[:abs] = v
+  end
+  opts.on("-r", "--recursive",
+          "Apply all files under each directory, recursively") do |v|
+    options[:recursive] = v
   end
   opts.on("-n", "--[no-]dry-run",
           "Perform a trial run with no changes made") do |v|
@@ -156,6 +161,27 @@ EOS
     @@ic_dir = ic_dir
   end
 
+  def self.fix_files(files, options, visited_files = {})
+    files.each do |file|
+      begin
+        stat = file.stat
+      rescue
+        next
+      end
+      key = [stat.dev, stat.ino]
+      next if visited_files.has_key?(key)
+      visited_files[key] = true
+      if stat.file?
+        info = ObjectFileInfo.new(file, options)
+        if info.should_be_fixed
+          info.fix_path
+        end
+      elsif options[:recursive] && stat.directory?
+        ObjectFileInfo.fix_files(file.children, options, visited_files)
+      end
+    end
+  end
+
 private
   def is_oralib?(filename, check_first_only = false)
     basename = File.basename(filename)
@@ -221,19 +247,11 @@ private
 end
 
 files = ARGV
-if files.size == 0
-  files = Dir['*'].select {|file| File.file?(file)}
-end
+files = ['.'] if files.empty?
 
 begin
   ObjectFileInfo.set_rpath(options[:ic_dir])
-
-  files.each do |file|
-    info = ObjectFileInfo.new(file, options)
-    if info.should_be_fixed
-      info.fix_path
-    end
-  end
+  ObjectFileInfo.fix_files(files.collect {|file| Pathname.new(file)}, options)
 rescue ObjectFileInfo::Error
   puts $!
   exit 1
