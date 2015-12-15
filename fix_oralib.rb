@@ -32,15 +32,15 @@ class ObjectFileInfo
   class Error < RuntimeError
   end
 
-  @@oralibs = [/^libclntsh.dylib.\d+.\d$/, # in basic and basiclite packages
-               /^libnnz\d+.dylib$/,        # in basic and basiclite packages
-               /^libocci.dylib.\d+.\d$/,   # in basic and basiclite packages
+  @@oralibs = [/^libclntsh\.dylib\.\d+\.\d$/, # in basic and basiclite packages
+               /^libnnz\d+\.dylib$/,       # in basic and basiclite packages
+               /^libocci\.dylib\.\d+\.\d$/,# in basic and basiclite packages
                "libociei.dylib",           # in basic package
                "libociicus.dylib",         # in basiclite package
-               /^libocijdbc\d+.dylib$/,    # in basic and basiclite packages
+               /^libocijdbc\d+\.dylib$/,   # in basic and basiclite packages
                "libsqlplus.dylib",         # in sqlplus package
                "libsqlplusic.dylib",       # in sqlplus package
-               /^libheteroxa\d+.dylib$/    # in jdbc package
+               /^libheteroxa\d+\.dylib$/   # in jdbc package
               ]
   @@ic_dir = nil
 
