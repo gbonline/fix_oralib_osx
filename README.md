@@ -73,7 +73,7 @@ the easiest way is applying `fix_oralib.rb` to all files.
 `fix_oralib.rb` doesn't change unrelated files.
 
 ```shell
-$ find /path/to/application/top/directory -type f | xargs ruby fix_oralib.rb --ic_dir=/opt/instantclient_11_2
+$ ruby fix_oralib.rb --recursive --ic_dir=/opt/instantclient_11_2 /path/to/application/top/directory
 ```
 
 ### Fix compilation steps
@@ -89,6 +89,9 @@ If you have source code and can make binary files, do the followings.
 instead of an absolute path.)
 
 ## What this does.
+
+**Note:** This section has been incorrect since April, 2016. `fix_oralib.rb`
+uses `@rpath` only when `--no-absolute-path` option is specified.
 
 `fix_oralib.rb` changes the following information recorded in mach-o binary files.
 * identification name
@@ -208,6 +211,9 @@ oraclapp:
 ```
 
 ## Absolute path option
+
+**Note:** This section has been incorrect since April, 2016. `fix_oralib.rb`
+uses the absolute path by default.
 
 `fix_oralib.rb` uses the absolute path of instant client directory
 instead of `@rpath` if `-a` or `--absolute-path` optoin is specified.

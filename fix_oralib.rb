@@ -3,7 +3,9 @@
 require 'optparse'
 require 'pathname'
 
-options = {}
+options = {
+  :abs => true,
+}
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: fix_oralib.rb [options] files..."
 
@@ -13,7 +15,7 @@ parser = OptionParser.new do |opts|
     options[:ic_dir] = File.expand_path('.', dir)
   end
   opts.on("-a", "--[no-]absolute-path",
-          "Use the absolute path of instant client directory instead of @rpath") do |v|
+          "Use the absolute path of instant client directory instead of @rpath (default)") do |v|
     options[:abs] = v
   end
   opts.on("-r", "--recursive",
