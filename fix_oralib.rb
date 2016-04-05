@@ -249,7 +249,7 @@ private
 end
 
 files = ARGV
-files = ['.'] if files.empty?
+files = Pathname.new('.').children if files.empty?
 
 begin
   ObjectFileInfo.set_rpath(options[:ic_dir])
