@@ -10,7 +10,8 @@ The old `fix_oralib.rb` document was renamed to `OLD_README.md`.
 
 ## Note for third party applications
 
-Third party applications depending on the 12.1 client should link with `-rpath`.
+Third party applications depending on the 12.1 client should link with `-rpath` if the
+client is not installed in `/usr/lib`, `/usr/local/lib` or `~/lib`.
 
 [ruby-oci8][] and [node-oracledb][] add `-rpath` to linker options by default.
 
