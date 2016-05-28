@@ -1,5 +1,16 @@
 #!/usr/bin/env ruby
 
+puts <<EOS
+---------------------------------------------------------------------
+Caution!
+
+  fix_oralib.rb has been obsolete since Oracle Instant Client 12.1
+  for OS X was released.
+  See https://github.com/kubo/fix_oralib_osx
+---------------------------------------------------------------------
+
+EOS
+
 require 'optparse'
 require 'pathname'
 
