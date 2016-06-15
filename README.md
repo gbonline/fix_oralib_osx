@@ -34,6 +34,10 @@ $ install_name_tool -add_rpath /directory/name/containing/oracle/client applicat
 As for [cx_Oracle][], you should add the environment variable `FORCE_RPATH` to link with `-rpath` at compilation time.
 (You have no need to set the environment variable at runtime.)
 
+Otherwise:
+If you see the Oracle site installation instruction, for 12.1 version it's possible to replicate the instructions for the 11.2 version: add a symbolic link into ~/lib to the libclntsh.dylib.12.1 library and so python applications run well.
+
+
 [download]: http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html
 [inst]: http://www.oracle.com/technetwork/topics/intel-macsoft-096467.html#ic_osx_inst
 [ruby-oci8]: http://www.rubydoc.info/github/kubo/ruby-oci8
